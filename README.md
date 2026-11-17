@@ -22,5 +22,7 @@ Student: Tan Hui Shan, A24CS0197
 
 ## Exit codes of batch.py
 **Exit Codes 0:** means completely success. The program ran, found the folder, and processed every single FASTA file perfectly without having to reject a single one.
+
 **Exit Codes 1:** means partial success. The program successfully finished the batch, but it had to reject at least one malformed or empty file along the way.
+
 **Exit Codes 2:** means fatal error. The program couldn't even start the batch process because the input folder the user typed in doesn't exist.
