@@ -30,7 +30,8 @@ def process_directory(in_dir, out_csv, log_path=None) -> dict[str, int]:
     handler = None
     if log_path:
         # Create the file handler to write logs to the specified path
-        handler = logging.FileHandler(log_path, encoding="utf-8")
+        Path(log_path).parent.mkdir(parents=True, exist_ok=True)
+        handler = logging.FileHandler(log_path, mode="w", encoding="utf-8")
         # Set the format of the log messages (time, level, message)
         handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s"))
         # Attach the handler to our LOG object
@@ -42,34 +43,40 @@ def process_directory(in_dir, out_csv, log_path=None) -> dict[str, int]:
     try:
         # sorted() ensures files are processed in exact alphabetical order on every computer
         for fasta_path in sorted(Path(in_dir).glob("*.fasta")):
-            
+            if not fasta_path.is_file():
+                continue
+
             # The inner try/except protects the batch: if one file fails, it just jumps 
             # to the 'except' block, records the failure, and moves to the next file.
             try:
                 # Convert the generator to a list so we can easily count the records
                 records = list(read_fasta(fasta_path))
                 record_count = len(records)
-                
-                # The lab sheet explicitly requires rejecting files with 0 records
+
+                status = "processed"
+                reason = ""
                 if record_count == 0:
-                    raise ValueError("empty file")
-                
-                # If we get here, the file was valid! Record the success.
+                    status = "rejected"
+                    reason = "empty file"
                 rows.append({
                     "file": fasta_path.name,  # .name gets just the file name, not the whole path
                     "records": record_count,
-                    "status": "processed",
-                    "reason": "",
+                    "status": status,
+                    "reason": reason,
                 })
-                processed += 1
-                total_records += record_count
-                
-                # Write an INFO log for the successful file
-                if handler:
-                    LOG.info(f"processed {fasta_path.name}")
+
+                if record_count == 0:
+                    rejected += 1
+                    if handler:
+                        LOG.warning(f"rejected {fasta_path.name}: {reason}")
+                else:
+                    processed += 1
+                    total_records += record_count
+                    if handler:
+                        LOG.info(f"processed {fasta_path.name}")
                     
-            # Catch all file, encoding, and formatting errors
-            except (OSError, UnicodeDecodeError, FastaFormatError, ValueError) as e:
+            # Catch file, encoding, and formatting errors
+            except (OSError, UnicodeDecodeError, FastaFormatError) as e:
                 # Record the failure
                 rows.append({
                     "file": fasta_path.name,

@@ -22,8 +22,19 @@ def test_record_no_sequence(tmp_path):
         list(bio_io.read_fasta(test_file))
     
 def test_main_missing_dir(tmp_path):
-    result = batch.main(["fake_missing_folder_path"])
+    result = batch.main([str(tmp_path / "missing")])
     assert result == 2
     
-    
+def test_log_overwritten(tmp_path):
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    (input_dir / "sample.fasta").write_text(">sample\nACGT\n")
+    log_path = tmp_path / "logs" / "batch.log"
+
+    batch.process_directory(input_dir, tmp_path / "output.csv", log_path)
+    batch.process_directory(input_dir, tmp_path / "output.csv", log_path)
+
+    log_lines = log_path.read_text(encoding="utf-8").splitlines()
+    assert len(log_lines) == 1
+    assert "processed sample.fasta" in log_lines[0]
     
